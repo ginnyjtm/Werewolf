@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Werewolf.Api/Werewolf.Api.csproj" />
+    <Project Path="src/Werewolf.Engine/Werewolf.Engine.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Werewolf.Engine.Tests/Werewolf.Engine.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,139 @@
+<main class="min-h-screen transition-colors duration-700"
+  [class]="game.phase() === 'Night' ? 'bg-slate-900 text-slate-100' : 'bg-amber-50 text-slate-900'">
+  <div class="mx-auto max-w-md space-y-4 p-4">
+    <h1 class="text-center text-3xl font-bold">🐺 Werewolf</h1>
+
+    @if (game.error(); as err) {
+    <div class="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-800">{{ err }}</div>
+    }
+
+    @if (!game.myId()) {
+    <!-- ========== Join ========== -->
+    <section class="space-y-3">
+      <input class="w-full rounded-lg border px-3 py-2 text-slate-900" placeholder="Your name" [(ngModel)]="name" />
+      <button class="btn w-full" [disabled]="!name" (click)="game.createRoom(name)">Create room</button>
+      <div class="flex gap-2">
+        <input class="flex-1 rounded-lg border px-3 py-2 text-slate-900" placeholder="Room code" [(ngModel)]="code" />
+        <button class="btn" [disabled]="!name || !code" (click)="game.joinRoom(code, name)">Join</button>
+      </div>
+    </section>
+
+    } @else if (game.phase() === 'Lobby') {
+    <!-- ========== Lobby ========== -->
+    <section class="space-y-3 text-center">
+      <p class="text-sm opacity-70">Room code</p>
+      <p class="font-mono text-5xl font-bold tracking-widest">{{ game.roomCode() }}</p>
+
+        <ul class="space-y-1 text-left">
+          @for (p of game.players(); track p.id) {
+          <li class="rounded-lg bg-white/70 px-3 py-2">
+            {{ p.name }} @if (p.isBot) {🤖} @if (p.id === game.hostId()) {👑}
+          </li>
+          }
+        </ul>
+
+        @if (game.isHost()) {
+        <div class="flex gap-2">
+          <button class="btn flex-1" (click)="game.addBots(1)">+1 bot</button>
+          <button class="btn flex-1" [disabled]="game.players().length < 5" (click)="game.startGame()">
+            Start ({{ game.players().length }}/5+)
+          </button>
+        </div>
+        } @else {
+        <p class="opacity-70">Waiting for the host to start…</p>
+        }
+      </section>
+
+    } @else if (game.phase() === 'GameOver') {
+    <!-- ========== Game over ========== -->
+    @if (game.gameOver(); as over) {
+    <section class="space-y-3 text-center">
+      <p class="text-3xl font-bold">{{ over.winner === 'Wolves' ? '🐺 Wolves win!' : '🏡 Village wins!' }}</p>
+      <ul class="space-y-1 text-left">
+        @for (p of over.players; track p.id) {
+        <li class="flex justify-between rounded-lg bg-white/70 px-3 py-2">
+          <span>{{ p.name }} @if (!p.isAlive) {💀}</span>
+          <strong>{{ p.role }}</strong>
+        </li>
+        }
+          </ul>
+          </section>
+          }
+
+    } @else {
+    <!-- ========== In game ========== -->
+    <section class="space-y-4">
+      <header class="flex items-center justify-between">
+        <div>
+          <p class="text-xs uppercase opacity-60">Round {{ game.round() }}</p>
+          <p class="text-xl font-bold">{{ phaseTitle() }}</p>
+        </div>
+        <p class="font-mono text-3xl">{{ secondsLeft() }}s</p>
+      </header>
+
+        <div class="rounded-lg bg-indigo-500/20 px-3 py-2">
+          You are a <strong>{{ game.myRole() }}</strong>
+          @if (wolfNames()) {
+          <span class="block text-sm opacity-80">Your pack: {{ wolfNames() }}</span>
+          }
+        </div>
+
+        <p class="text-sm opacity-80">{{ hint() }}</p>
+
+        <ul class="grid grid-cols-2 gap-2">
+          @for (p of game.players(); track p.id) {
+          <li class="rounded-lg border border-current/20 p-3" [class.opacity-40]="!p.isAlive"
+            [class.ring-2]="game.selected() === p.id" [class.ring-indigo-500]="game.selected() === p.id">
+            <p class="font-semibold">
+              {{ p.name }} @if (p.id === game.myId()) {(you)} @if (!p.isAlive) {💀}
+            </p>
+            @if (game.phase() === 'Voting') {
+            <p class="text-xs opacity-70">{{ game.tally()[p.id] ?? 0 }} vote(s)</p>
+            }
+              @if (canTarget(p)) {
+              <button class="btn mt-2 w-full text-sm" (click)="act(p)">{{ buttonLabel() }}</button>
+              }
+            </li>
+            }
+        </ul>
+
+        @if (game.myRole() === 'Werewolf' && game.amAlive()) {
+        <div class="space-y-2 rounded-lg bg-red-900/30 p-3">
+          <p class="text-sm font-bold">🩸 Wolf chat (only wolves see this)</p>
+          @for (m of game.wolfChat(); track $index) {
+          <p class="text-sm"><strong>{{ m.from }}:</strong> {{ m.message }}</p>
+          }
+            <div class="flex gap-2">
+              <input class="flex-1 rounded-lg border px-2 py-1 text-slate-900" [(ngModel)]="chat" (keyup.enter)="send()" />
+              <button class="btn text-sm" (click)="send()">Send</button>
+            </div>
+            </div>
+            }
+
+        @if (game.phase() === 'Day' || game.phase() === 'Voting') {
+        <div class="space-y-2 rounded-lg bg-white/70 p-3">
+          <p class="text-sm font-bold">💬 Town square</p>
+          @for (m of game.townChat(); track $index) {
+          <p class="text-sm"><strong>{{ m.from }}:</strong> {{ m.message }}</p>
+          }
+            @if (game.amAlive()) {
+            <div class="flex gap-2">
+              <input class="flex-1 rounded-lg border px-2 py-1 text-slate-900" placeholder="Accuse someone…" [(ngModel)]="townMsg"
+                (keyup.enter)="sendTown()" />
+              <button class="btn text-sm" (click)="sendTown()">Send</button>
+            </div>
+            }
+          </div>
+          }
+      </section>
+      }
+
+    @if (game.log().length) {
+    <ol class="space-y-1 border-t border-current/20 pt-3 text-sm">
+      @for (line of game.log(); track $index) {
+      <li>{{ line }}</li>
+      }
+      </ol>
+      }
+      </div>
+</main>
